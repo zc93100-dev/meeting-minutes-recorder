@@ -59,13 +59,17 @@ npm start
 
 浏览器打开 **http://localhost:19924** 即可使用。
 
-### macOS 开机自启（可选）
+### 开机自启 + 崩溃自动恢复（推荐）
+
+终端关闭或电脑重启后，`localhost:19924` 就打不开了。用 macOS launchd 注册为系统服务，实现**开机自启 + 进程崩溃自动拉起**：
 
 ```bash
-# 将项目中的 plist 复制到 LaunchAgents 目录
-cp com.meetingminute.server.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.meetingminute.server.plist
+bash setup/install-service.sh
 ```
+
+安装后即使终端关了、电脑重启了，服务都会自动在后台运行，不需要手动启动。
+
+**如果不装服务**，每次用都要手动运行 `npm start`，终端不能关。
 
 ## 使用方法
 
