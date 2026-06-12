@@ -55,7 +55,9 @@ done
 
 # 非登录项模式才打开浏览器
 if [ "$IS_LOGIN_ITEM" = false ]; then
-    open "http://localhost:19924"
+    # 用 AppleScript 打开并激活浏览器窗口（不会在后台静默）
+    osascript -e 'display notification "服务已启动" with title "🎙️ 会议纪要录音器" subtitle "http://localhost:19924"'
+    osascript -e 'open location "http://localhost:19924"'
 fi
 
 # 常驻前台（App 不退出，直到用户 Cmd+Q）
