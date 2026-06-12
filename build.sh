@@ -79,11 +79,17 @@ if [ ! -d "node_modules" ]; then
     exit 1
 fi
 
+# 判断是否从登录项启动（开机自启模式 - 不弹浏览器）
+IS_LOGIN_ITEM=false
+if [ "$(ps -o ppid= -p $$ | xargs)" = "1" ]; then
+    IS_LOGIN_ITEM=true
+fi
+
 # 检测是否已运行
 if lsof -i :19924 -P 2>/dev/null | grep LISTEN > /dev/null 2>&1; then
-    open "http://localhost:19924"
-    osascript -e 'display dialog "服务已在运行" buttons {"打开页面"} default button 1 with title "🎙️ 会议纪要录音器"'
-    # 保持前台进程，让 App 不退出
+    if [ "$IS_LOGIN_ITEM" = false ]; then
+        open "http://localhost:19924"
+    fi
     while true; do sleep 1; done
     exit 0
 fi
@@ -100,7 +106,10 @@ for i in {1..20}; do
     fi
 done
 
-open "http://localhost:19924"
+# 非登录项模式才打开浏览器
+if [ "$IS_LOGIN_ITEM" = false ]; then
+    open "http://localhost:19924"
+fi
 
 # 常驻前台（App 不退出，直到用户 Cmd+Q）
 wait $SERVER_PID 2>/dev/null
