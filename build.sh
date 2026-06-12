@@ -1,5 +1,6 @@
 #!/bin/bash
 # 📦 构建 会议纪要录音器 macOS App（AppleScript 原生）
+# 双击启动服务 + 浏览器自动打开，Cmd+Q 关闭
 
 set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -14,36 +15,33 @@ mkdir -p "$BUILD_DIR"
 
 APP_NAME="会议纪要录音器"
 APP_PATH="$BUILD_DIR/$APP_NAME.app"
+NODE_PATH="$(which node)"
 
 # ========== 生成 AppleScript App ==========
 osacompile -o "$APP_PATH" -e "
--- 会话 ID（每次构建不同，用于定位进程）
-property sessionId : \"$(date +%s)$RANDOM\"
-
 on run
     set projectDir to \"$PROJECT_DIR\"
+    set nodePath to \"$NODE_PATH\"
     
-    -- 启动 Node.js 服务
+    -- 启动 Node.js 服务（用 launchctl submit 完全脱离当前进程）
     try
-        do shell script \"cd \" & quoted form of projectDir & \" && nohup node server.js > /dev/null 2>&1 &\"
+        do shell script \"launchctl submit -l mm.server -- \" & nodePath & \" \" & projectDir & \"/server.js\"
     end try
     
-    -- 等待服务就绪
     delay 3
     
-    -- 打开页面
     open location \"http://localhost:19924\"
 end run
 
 on quit
     try
-        do shell script \"pkill -f 'node.*server.js' 2>/dev/null; exit 0\"
+        do shell script \"launchctl remove mm.server 2>/dev/null\"
     end try
     continue quit
 end quit
 "
 
-# ========== 设置图标（从 build.sh 的 Python 脚本生成）==========
+# ========== 生成图标 ==========
 python3 << PYICON
 import struct, zlib, math, os
 
@@ -85,29 +83,20 @@ for y in range(size):
         pixels.extend([rv, gv, bv, a])
 
 png_bytes = create_png(size, size, pixels)
-# 写入 app 的资源目录
 icon_path = os.path.join('$APP_PATH', 'Contents', 'Resources', 'icon.png')
 with open(icon_path, 'wb') as f:
     f.write(png_bytes)
 PYICON
 
-# 设置图标引用
 defaults write "$APP_PATH/Contents/Info" CFBundleIconFile icon 2>/dev/null || true
-
-# 添加麦克风权限声明
 plutil -insert NSMicrophoneUsageDescription -string "需要使用麦克风进行录音" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 
 echo ""
-echo "✅ 构建完成！"
-echo ""
-echo "📌 App 位置: $APP_PATH"
+echo "✅ 构建完成！App 位置: $APP_PATH"
 echo ""
 echo "   双击 → 启动服务 + 浏览器自动打开"
 echo "   Cmd+Q → 关闭服务 + 退出 App"
 echo "   服务端口: http://localhost:19924"
-echo ""
-echo "📌 拖到程序坞固定后："
-echo "   点击图标启动，Cmd+Q 关闭"
 echo ""
 
 open "$BUILD_DIR"
