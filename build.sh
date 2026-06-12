@@ -1,60 +1,49 @@
 #!/bin/bash
-# 📦 构建 会议纪要录音器 macOS App
+# 📦 构建 会议纪要录音器 macOS App（AppleScript 原生）
 
 set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
-LAUNCHER_TPL="$PROJECT_DIR/setup/app-launcher.sh"
 
 echo "═══════════════════════════════════"
 echo "  📦  构建 会议纪要录音器.app       "
 echo "═══════════════════════════════════"
 
-# 清理
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 APP_NAME="会议纪要录音器"
 APP_PATH="$BUILD_DIR/$APP_NAME.app"
 
-mkdir -p "$APP_PATH/Contents/MacOS"
-mkdir -p "$APP_PATH/Contents/Resources"
+# ========== 生成 AppleScript App ==========
+osacompile -o "$APP_PATH" -e "
+-- 会话 ID（每次构建不同，用于定位进程）
+property sessionId : \"$(date +%s)$RANDOM\"
 
-# ========== Info.plist ==========
-cat > "$APP_PATH/Contents/Info.plist" << PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>MeetingMinutes</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.meeting-minutes.app</string>
-    <key>CFBundleName</key>
-    <string>会议纪要录音器</string>
-    <key>CFBundleDisplayName</key>
-    <string>会议纪要录音器</string>
-    <key>CFBundleVersion</key>
-    <string>1.0</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSUIElement</key>
-    <false/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>需要使用麦克风进行录音</string>
-</dict>
-</plist>
-PLIST
+on run
+    set projectDir to \"$PROJECT_DIR\"
+    
+    -- 启动 Node.js 服务
+    try
+        do shell script \"cd \" & quoted form of projectDir & \" && nohup node server.js > /dev/null 2>&1 &\"
+    end try
+    
+    -- 等待服务就绪
+    delay 3
+    
+    -- 打开页面
+    open location \"http://localhost:19924\"
+end run
 
-# ========== 生成可执行脚本（嵌入项目绝对路径，支持 .app 移动到任意位置）==========
-sed "s|__PROJECT_ROOT__|$PROJECT_DIR|g" "$LAUNCHER_TPL" > "$APP_PATH/Contents/MacOS/MeetingMinutes"
-chmod +x "$APP_PATH/Contents/MacOS/MeetingMinutes"
+on quit
+    try
+        do shell script \"pkill -f 'node.*server.js' 2>/dev/null; exit 0\"
+    end try
+    continue quit
+end quit
+"
 
-# ========== 生成应用图标 ==========
+# ========== 设置图标（从 build.sh 的 Python 脚本生成）==========
 python3 << PYICON
 import struct, zlib, math, os
 
@@ -96,26 +85,29 @@ for y in range(size):
         pixels.extend([rv, gv, bv, a])
 
 png_bytes = create_png(size, size, pixels)
+# 写入 app 的资源目录
 icon_path = os.path.join('$APP_PATH', 'Contents', 'Resources', 'icon.png')
 with open(icon_path, 'wb') as f:
     f.write(png_bytes)
 PYICON
 
-# 注册图标
+# 设置图标引用
 defaults write "$APP_PATH/Contents/Info" CFBundleIconFile icon 2>/dev/null || true
+
+# 添加麦克风权限声明
+plutil -insert NSMicrophoneUsageDescription -string "需要使用麦克风进行录音" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 
 echo ""
 echo "✅ 构建完成！"
 echo ""
 echo "📌 App 位置: $APP_PATH"
 echo ""
-echo "   Project: $PROJECT_DIR"
-echo "   (已嵌入 app 中，可移动到 /Applications/ 或任意位置)"
+echo "   双击 → 启动服务 + 浏览器自动打开"
+echo "   Cmd+Q → 关闭服务 + 退出 App"
+echo "   服务端口: http://localhost:19924"
 echo ""
-echo "打开方式："
-echo "   1. Finder 中双击 → 启动服务 + 打开浏览器"
-echo "   2. Cmd+Q → 关闭服务 + 退出 App"
-echo "   3. 设置 Dock / /Applications/ → 随时一键启动"
+echo "📌 拖到程序坞固定后："
+echo "   点击图标启动，Cmd+Q 关闭"
 echo ""
 
 open "$BUILD_DIR"
