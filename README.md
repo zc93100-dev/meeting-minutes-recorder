@@ -21,6 +21,36 @@
 
 ## 快速开始
 
+### 📦 一键 App（macOS 推荐）
+
+构建一个真正的 macOS 原生应用，**像普通软件一样双击打开、Cmd+Q 关闭**：
+
+```bash
+# 1. 确保已安装依赖（仅首次）
+npm install
+cp .env.example .env   # 填入 API Key
+
+# 2. 构建 App
+bash build.sh
+
+# 3. 打开 build/ 目录，双击「会议纪要录音器.app」
+# 或者拖到 Dock 固定，以后一键启动
+```
+
+### 命令行方式
+
+```bash
+# 安装依赖
+npm install
+cp .env.example .env
+
+# 启动
+npm start
+
+# 浏览器打开 http://localhost:19924
+# 注意：终端不能关，否则服务停止
+```
+
 ### 前置要求
 
 - [Node.js](https://nodejs.org/) ≥ 18
@@ -59,17 +89,10 @@ npm start
 
 浏览器打开 **http://localhost:19924** 即可使用。
 
-### 开机自启 + 崩溃自动恢复（推荐）
+### 什么情况下页面打不开？
 
-终端关闭或电脑重启后，`localhost:19924` 就打不开了。用 macOS launchd 注册为系统服务，实现**开机自启 + 进程崩溃自动拉起**：
-
-```bash
-bash setup/install-service.sh
-```
-
-安装后即使终端关了、电脑重启了，服务都会自动在后台运行，不需要手动启动。
-
-**如果不装服务**，每次用都要手动运行 `npm start`，终端不能关。
+- **终端关了 / 电脑重启** → 运行 `npm start` 的终端进程结束，页面就打不开了
+- **解决方法**：用 `build.sh` 构建 .app，**双击打开、Cmd+Q 关闭**，像普通软件一样使用
 
 ## 使用方法
 
